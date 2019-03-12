@@ -11,6 +11,9 @@ Date:      $Date: 2006/03/17 15:10:10 $
 Version:   $Revision: 1.2 $
 
 =========================================================================auto=*/
+// STD includes
+#include <chrono>
+
 // OpenIGTLinkIO include
 #include "igtlioConnector.h"
 #include "igtlioDeviceFactory.h"
@@ -122,6 +125,8 @@ public:
   MessageDeviceMapType  IncomingMRMLIDToDeviceMap;
   DeviceTypeToNodeTagMapType DeviceTypeToNodeTagMap;
   FrameMapType          PreviousIncomingFramesMap;
+  // unsigned long long
+  int updateAfterTime;
 };
 
 //----------------------------------------------------------------------------
@@ -237,7 +242,20 @@ void vtkMRMLIGTLConnectorNode::vtkInternal::ProcessOutgoingDeviceModifiedEvent(
 void vtkMRMLIGTLConnectorNode::vtkInternal::ProcessIncomingDeviceModifiedEvent(
   vtkObject * vtkNotUsed(caller), unsigned long vtkNotUsed(event), igtlioDevice * modifiedDevice)
 {
+  auto currentTime1 = std::chrono::system_clock::now().time_since_epoch();
+  auto ms1 = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime1);
+  int msInt1 = ms1.count();
+  if (msInt1 < this->updateAfterTime)
+  {
+    return;
+  }
   vtkMRMLNode* modifiedNode = this->GetMRMLNodeforDevice(modifiedDevice);
+  auto currentTime2 = std::chrono::system_clock::now().time_since_epoch();
+  auto ms2 = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime2);
+  int msInt2 = ms2.count();
+  auto requestRate = std::chrono::milliseconds(250);  // 4 FPS update
+  int requestRateInt = requestRate.count();
+  this->updateAfterTime = msInt2 + requestRateInt;
   if (!modifiedNode)
   {
     // Could not find or add node.
